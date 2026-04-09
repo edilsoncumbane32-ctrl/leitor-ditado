@@ -15,7 +15,22 @@ let frases = [];
 let indiceAtual = 0;
 let falando = false;
 let emModoContinuo = false;
+let ttsReady = false;
 
+// Inicializa o TTS (chamado no primeiro toque)
+function initTTS() {
+    if (!ttsReady && window.speechSynthesis) {
+        // Força o carregamento do mecanismo de voz com um utterance vazio
+        const utterance = new SpeechSynthesisUtterance('');
+        utterance.lang = 'pt-BR';
+        window.speechSynthesis.speak(utterance);
+        window.speechSynthesis.cancel();
+        ttsReady = true;
+        statusSpan.innerText = '✅ Áudio ativado. Pronto para ler.';
+    }
+}
+
+// Divide texto em frases
 function dividirFrases(texto) {
     texto = texto.replace(/\s+/g, ' ').trim();
     return texto.split(/(?<=[.!?])\s+/).filter(f => f.length > 0);
@@ -41,21 +56,21 @@ function pararFala() {
 
 function lerFrase(indice) {
     if (!window.speechSynthesis) {
-        statusSpan.innerText = '❌ Navegador sem suporte a síntese de voz.';
-        return false;
+        statusSpan.innerText = '❌ Navegador sem suporte.';
+        return;
     }
     if (frases.length === 0) {
-        statusSpan.innerText = '⚠️ Nenhuma frase para ler.';
-        return false;
+        statusSpan.innerText = '⚠️ Nenhuma frase.';
+        return;
     }
-    if (indice < 0 || indice >= frases.length) {
-        statusSpan.innerText = '⚠️ Índice inválido.';
-        return false;
-    }
+    if (indice < 0 || indice >= frases.length) return;
     
+    // Para qualquer fala anterior
     pararFala();
     
-    // Pequeno delay para garantir que a fala anterior foi cancelada
+    // Garante que o TTS foi iniciado
+    if (!ttsReady) initTTS();
+    
     setTimeout(() => {
         const frase = frases[indice];
         const velocidade = parseFloat(velocidadeSlider.value);
@@ -71,7 +86,7 @@ function lerFrase(indice) {
         };
         utterance.onend = () => {
             falando = false;
-            statusSpan.innerText = '✅ Leitura concluída.';
+            statusSpan.innerText = '✅ Concluído.';
             if (emModoContinuo && !modoDitadoCheck.checked) {
                 if (indice + 1 < frases.length) {
                     indiceAtual = indice + 1;
@@ -87,7 +102,10 @@ function lerFrase(indice) {
             console.error(e);
             falando = false;
             emModoContinuo = false;
-            statusSpan.innerText = '❌ Erro na leitura. Tente novamente.';
+            statusSpan.innerText = '❌ Erro. Tente novamente.';
+            // Tenta reiniciar o TTS
+            ttsReady = false;
+            initTTS();
         };
         
         window.speechSynthesis.speak(utterance);
@@ -96,9 +114,10 @@ function lerFrase(indice) {
 
 function lerTudo() {
     if (frases.length === 0) {
-        statusSpan.innerText = '⚠️ Digite um texto primeiro.';
+        statusSpan.innerText = '⚠️ Digite um texto.';
         return;
     }
+    if (!ttsReady) initTTS();
     pararFala();
     if (modoDitadoCheck.checked) {
         emModoContinuo = false;
@@ -111,6 +130,7 @@ function lerTudo() {
 
 function repetirFraseAtual() {
     if (frases.length === 0) return;
+    if (!ttsReady) initTTS();
     pararFala();
     emModoContinuo = false;
     lerFrase(indiceAtual);
@@ -118,6 +138,7 @@ function repetirFraseAtual() {
 
 function voltarFrase() {
     if (frases.length === 0) return;
+    if (!ttsReady) initTTS();
     pararFala();
     emModoContinuo = false;
     if (indiceAtual > 0) {
@@ -131,6 +152,7 @@ function voltarFrase() {
 
 function proximaFrase() {
     if (frases.length === 0) return;
+    if (!ttsReady) initTTS();
     pararFala();
     emModoContinuo = false;
     if (indiceAtual + 1 < frases.length) {
@@ -166,13 +188,18 @@ textoInput.addEventListener('input', () => {
     if (falando) pararFala();
 });
 
+// Ao carregar, prepara mas não ativa o TTS automaticamente
 window.addEventListener('load', () => {
     atualizarFrases();
-    // Verifica se a síntese está disponível
     if (!window.speechSynthesis) {
-        statusSpan.innerText = '❌ Seu navegador não suporta leitura em voz alta.';
+        statusSpan.innerText = '❌ Navegador sem suporte.';
         btnLer.disabled = true;
     } else {
-        statusSpan.innerText = '✅ Pronto. Clique em LER TUDO.';
+        statusSpan.innerText = '✅ Toque em "LER TUDO" para ativar o áudio.';
+        // Adiciona um listener de toque global para iniciar TTS no primeiro toque
+        document.body.addEventListener('touchstart', function initOnce() {
+            initTTS();
+            document.body.removeEventListener('touchstart', initOnce);
+        }, { once: true });
     }
 });
