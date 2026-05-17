@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="google" content="notranslate">
+    <title>Leitor Ditado - Pausas Inteligentes</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body class="light-mode">
+    <div class="container">
+        <div class="header">
+            <h1>📖 Leitor + Ditado</h1>
+            <div class="header-buttons">
+                <button id="micBtn" class="mic-btn" aria-label="Assistente de voz">🎤</button>
+                <button id="configBtn" class="config-btn" aria-label="Configurações">⚙️</button>
+                <button id="themeToggle" class="theme-btn" aria-label="Alternar tema">🌙</button>
+            </div>
+        </div>
+
+        <div id="listeningStatus" class="listening-status hidden">
+            <span class="pulse"></span> Ouvindo... Fale um comando
+        </div>
+
+        <div id="audioActivation" class="activation-panel">
+            <button id="btnActivateAudio" class="activate-btn">🎤 ATIVAR ÁUDIO</button>
+            <p class="activation-help">Clique antes de usar o leitor pela primeira vez</p>
+        </div>
+
+        <div class="text-area-wrapper">
+            <textarea id="texto" rows="6" placeholder="Digite ou cole seu texto aqui..."></textarea>
+            <div class="textarea-buttons">
+                <button id="btnImportar" class="btn-import">📁</button>
+                <button id="btnCompartilhar" class="btn-share">📤</button>
+                <button id="btnTraduzir" class="btn-translate">🌐</button>
+                <button id="btnFavorito" class="btn-favorito">⭐</button>
+                <button id="btnLimpar" class="btn-limpar">🗑️</button>
+                <button id="btnCamera" class="btn-camera">📷</button>
+            </div>
+        </div>
+        
+        <input type="file" id="fileInput" accept=".txt" style="display: none;">
+        <input type="file" id="imageInput" accept="image/*" capture="environment" style="display: none;">
+        
+        <div class="stats-bar">
+            <span id="wordCount">0 palavras</span> | 
+            <span id="charCount">0 caracteres</span> | 
+            <span id="readingTime">0 min leitura</span>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar" style="width:0%"></div>
+        </div>
+
+        <div class="history-fav-bar">
+            <select id="historySelect" class="history-select">
+                <option value="">📜 Histórico</option>
+            </select>
+            <select id="favoritosSelect" class="favoritos-select">
+                <option value="">⭐ Favoritos</option>
+            </select>
+        </div>
+
+        <div class="current-sentence-card" id="currentSentenceCard">
+            <span class="label">🔊 Lendo agora:</span>
+            <span id="fraseAtualDestaque">—</span>
+        </div>
+        
+        <div class="controles">
+            <div class="control-group">
+                <label>🐢 Velocidade: 
+                    <button id="velMenos" class="vel-btn">−</button>
+                    <input type="range" id="velocidade" min="0.5" max="1.5" step="0.05" value="1.0">
+                    <button id="velMais" class="vel-btn">+</button>
+                    <span id="velValor">1.0</span>
+                </label>
+            </div>
+            <div class="control-group">
+                <label>⏸️ Pausa entre frases (s): 
+                    <input type="range" id="pausaSlider" min="0" max="2" step="0.1" value="0.3">
+                    <span id="pausaValor">0.3</span>
+                </label>
+            </div>
+            <div class="botoes">
+                <button id="btnLer" class="primario" disabled>▶ LER TUDO</button>
+                <button id="btnRepetir" class="secundario" disabled>🔁 REPETIR</button>
+                <button id="btnVoltar" class="secundario" disabled>⏪ VOLTAR</button>
+                <button id="btnProximo" class="secundario" disabled>⏩ PRÓXIMO</button>
+                <button id="btnParar" class="perigo" disabled>⏹ PARAR</button>
+            </div>
+            <div class="modo">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="modoDitado" disabled>
+                    <span class="slider"></span>
+                    <span class="toggle-label">🎤 Modo ditado (uma frase por vez)</span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="status-area">
+            <div class="status-item"><strong>📌 Frase atual:</strong> <span id="fraseAtual">—</span></div>
+            <div class="status-item"><strong>🔊 Status:</strong> <span id="status">🔇 Ative o áudio primeiro</span></div>
+        </div>
+    </div>
+
+    <!-- Modal de Configurações -->
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Configurações</h2>
+            <label>🔤 Fonte do texto:</label>
+            <select id="fonteSelect">
+                <option value="system-ui">Padrão</option>
+                <option value="'OpenDyslexic', monospace">Dislexia</option>
+                <option value="Georgia, serif">Serifada</option>
+                <option value="Arial, sans-serif">Arial</option>
+            </select>
+            <label>📏 Tamanho da fonte (px):</label>
+            <input type="range" id="tamanhoFonteSlider" min="12" max="32" step="1" value="16">
+            <span id="tamanhoFonteValor">16px</span>
+
+            <label>⏸️ Pausa para vírgula (s):</label>
+            <input type="range" id="pausaVirgulaSlider" min="0" max="1" step="0.05" value="0.3">
+            <span id="pausaVirgulaValor">0.3</span>
+
+            <label>⏹️ Pausa para ponto final (s):</label>
+            <input type="range" id="pausaPontoSlider" min="0" max="2" step="0.05" value="0.8">
+            <span id="pausaPontoValor">0.8</span>
+
+            <label>🧠 Pausa inteligente (a cada X palavras, 0 = desligado):</label>
+            <input type="range" id="pausaPalavrasSlider" min="0" max="20" step="1" value="0">
+            <span id="pausaPalavrasValor">0</span>
+
+            <label>🔁 Repetir frase atual (vezes antes de avançar):</label>
+            <input type="range" id="repetirFraseSlider" min="1" max="5" step="1" value="1">
+            <span id="repetirFraseValor">1</span>
+
+            <button id="salvarConfig" class="salvar-config-btn">Salvar</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+                  </html>
