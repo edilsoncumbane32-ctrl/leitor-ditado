@@ -291,4 +291,4 @@ input:checked + .slider::before {
 @media (max-width: 600px) {
     .container { padding: 16px; }
     .botoes button { padding: 10px; font-size: 0.8rem; }
-                                }
+}
